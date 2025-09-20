@@ -1,72 +1,92 @@
-var renderer, scene, camera, myCanvas = document.getElementById('myCanvas');
+import * as THREE from "three";
+import { GLTFLoader } from "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/loaders/GLTFLoader.js";
 
-renderer = new THREE.WebGLRenderer({ canvas: myCanvas, antilias: true});
+const width = window.innerWidth;
+const height = window.innerHeight;
+
+const camera = new THREE.PerspectiveCamera(60, width / height, 0.1, 1000);
+camera.position.z = 10;
+
+const scene = new THREE.Scene();
+
+const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setClearColor(0xd1d1d1);
+renderer.setSize(width, height);
 renderer.setPixelRatio(window.devicePixelRatio);
-renderer.setSize(window.innerWidth, window.innerHeight);
 
-camera = new THREE.PerspectiveCamera(35, window.innerWidth / window.innerHeight, 0.1, 1000);
-
-scene = new THREE.Scene();
-
-var light = new THREE.AmbientLight(0xffffff, 0.5);
-scene.add(light);
-
-ambientLight = new THREE.AmbientLight(0xffffff, 0.2);
-scene.add(ambientLight);
-light2 = new THREE.PointLight(0xffffff, 0.8, 18);
-light2.position.set(-3,6,-3);
-light2.castShadow = true;
-light2.shadow.camera.near = 0.1;
-light2.shadow.camera.far = 25;
-scene.add(light2);
-
-
-var loader = new THREE.JSONLoader();
-loader.load('life-net.json', handle_load);
-
-var mesh;
-var mixer;
+document.body.appendChild(renderer.domElement);
 
 renderer.shadowMap.enabled = true;
-renderer.shadowMap.type = THREE.BasicShadowMap;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
-function handle_load(geometry, materials) {
+// свет
+const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+scene.add(ambientLight);
 
-  var material = new THREE.MeshLambertMaterial({color: 0xea5355});
+const light2 = new THREE.PointLight(0xffffff, 0.8, 18);
+light2.position.set(-3, 6, -3);
+light2.castShadow = true;
+scene.add(light2);
 
-  mesh = new THREE.Mesh(geometry, material);
+const sunLight = new THREE.DirectionalLight(0xffffff, 1);
+sunLight.position.set(5, 10, 5);
+sunLight.castShadow = true;
+scene.add(sunLight);
 
-  scene.add(mesh);
-  mesh.position.z = -10;
-  mesh.rotation.y = -1.5;
+// загрузка glTF
+const loader = new GLTFLoader();
+let mixer;
+loader.load(
+    "scene.gltf",
+    (gltf) => {
+        const model = gltf.scene;
+        scene.add(model);
+        model.position.set(0, 0, 0);
+        model.scale.set(1, 1, 1);
 
-  mixer = new THREE.AnimationMixer(mesh);
+        model.traverse((child) => {
+            if (child.isMesh) {
+                child.material = new THREE.MeshStandardMaterial({
+                    color: 0xea5355
+                });
+            }
+        });
 
-  var clip = THREE.AnimationClip.CreateFromMorphTargetSequence('talk', geometry.morphTargets, 30);
-  mixer.clipAction(clip).setDuration(1).play();
+        if (gltf.animations.length) {
+            mixer = new THREE.AnimationMixer(model);
+            gltf.animations.forEach((clip) => mixer.clipAction(clip).play());
+        }
+    },
+    (xhr) => {
+        console.log((xhr.loaded / xhr.total) * 100 + "% loaded");
+    },
+    (error) => {
+        console.error("Ошибка при загрузке модели:", error);
+    }
+);
+
+const clock = new THREE.Clock();
+
+function animate() {
+    requestAnimationFrame(animate);
+
+    const delta = clock.getDelta();
+    if (mixer) mixer.update(delta);
+
+    if (scene.children.length > 0) {
+        const model = scene.children.find((c) => c.type === "Group");
+        if (model) {
+            model.rotation.y += 0.01;
+        }
+    }
+
+    renderer.render(scene, camera);
 }
 
-render();
+animate();
 
-var delta = 0;
-var prevTime = Date.now();
-
-function render() {
-
-  delta += 0.1;
-
-  if (mesh) {
-    mesh.rotation.y -= 0.03;
-  }
-
-  if (mixer) {
-    var time = Date.now();
-    mixer.update((time - prevTime) * 0.001);
-    prevTime = time;
-  }
-
-  renderer.render(scene, camera);
-
-  requestAnimationFrame(render);
-}
+window.addEventListener("resize", () => {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+});
