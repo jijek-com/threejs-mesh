@@ -3,14 +3,20 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="X-UA-Compatible" content="ie=edge">
-    <link href="style.css" rel="stylesheet">
     <title>Document</title>
-    <script src='http://code.jquery.com/jquery-1.9.1.js' defer></script>
-    <script src='http://threejs.live/three.js/build/three.js' defer></script>
-    <script src='common.js' defer></script>
+
+    <link href="style.css" rel="stylesheet">
 </head>
 <body>
-    <canvas id="myCanvas"></canvas>
+
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js"
+            }
+        }
+    </script>
+    <script type="module" src="common.js"></script>
+
 </body>
 </html>
